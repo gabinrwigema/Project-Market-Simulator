@@ -1,0 +1,477 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx, amsfonts, amsmath, amssymb, array, gensymb, quiver, mathtools, soul, tikz  -  cd, extarrows}
+\usepackage{graphicx, amsfonts, amsmath, amssymb, array, gensymb, quiver, mathtools, soul, extarrows}
+
+% 1. LOAD PACKAGES
+\usepackage{amsthm}
+\usepackage[framemethod=default]{mdframed}
+\usepackage{appendix}
+\mdfsetup{linewidth=0.6pt} % Sets the line width for all mdframed boxes
+
+% 2. DEFINE STYLES AND ENVIRONMENTS
+% Style for theorems, lemmas, propositions (italic body)
+\theoremstyle{plain}
+\newtheorem{theorem}{theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% Style for definitions, examples (upright body)
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition} % Also shares the theorem counter
+\newtheorem{recap}[theorem]{Recap}
+
+\numberwithin{equation}{section}
+
+% 3. APPLY BOXES TO ALL ENVIRONMENTS
+\surroundwithmdframed{theorem}
+\surroundwithmdframed{lemma}
+\surroundwithmdframed{corollary}
+\surroundwithmdframed{proposition}
+\surroundwithmdframed{definition}
+\surroundwithmdframed{recap}
+\surroundwithmdframed{assumption}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{xcolor}
+\definecolor{codebg}{rgb}{0.95,0.95,0.95}
+\usepackage{setspace}
+\singlespacing
+\title{Stochastic Foundations of High-Frequency Market Making\\
+ \large{\textit{Discrete Trade Dynamics, Bayesian Valuation Inference, and Model Validity}}}
+\author{Gabin Ineza Rwigema}
+\date{January 2026}
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\begin{abstract}
+We construct a stochastic framework for modeling high-frequency market microstructures under discrete trade arrivals. Starting from Bernoulli trade arrivals, we derive the Poisson limit and connect it to the exponential distribution that represents inter-trade arrival times. Using Bayesian conjugate inference, we obtain a finite-sample valuation estimator that adapts to evolving information while remaining consistent with classical aggregation limits. We distinguish pricing risk from statistical execution deviations, from the model risk, arising from the violation of the model's core assumptions. Lastly, we introduce a market withdrawal mechanism that suspends trading when the assumed probabilistic structure is no longer locally valid.
+\end{abstract}
+
+\section{Foundations of Financial Market Time}
+\subsection{Modeling Trade Arrivals as Discrete Random Variables}
+To model the market time, we do not use on physical time; instead, we rely on discrete stochastic processes (O'Hara, 1995).
+
+Let $T$ be time elapsed in the real world, divided into $n$ infinitely small and equal intervals. In each interval, the probability of the occurrence of a trade is $p$, independent of other intervals. This distribution can be represented as $X \sim Bernoulli(p)$. 
+
+If we would like to understand the probability of  the $k$ successes $\forall$ $k \leq n$, we define a binomial distribution $X_n \sim Binomial(n, p)$.
+
+\subsection{Poisson Limit Theorem for Trade Arrivals}
+\begin{theorem}
+For a Poisson distribution, we define an average arrival intensity $\lambda = np$, with the random variable$ P(X=k) = \frac{\lambda^{k}e^{ -\lambda}}{k!}$ (Grimmett and Stirzaker, 2001).
+\end{theorem}
+
+Poisson process represents the null hypothesis an uninformed market with no urgency,  information advantage, or coordination advantages. Here, trade arrivals are modeled as discrete, independent randomness. Any deviation implies clustered trades, dependence, or coordination. Identifying the source of each deviation reveals important information and behavior that informs market making.
+
+\subsection{Exponential Inter-Arrival Time}
+Knowing that trade arrivals over a fixed interval converge to a Poisson distribution, we derive the stochastic structure of time between successive trades using a new distribution, i.e the exponential distribution.
+
+\begin{theorem}
+If ${N(t)}$ represents a Poisson distribution with rate $\lambda$, counting trade arrivals in observed time $t$, then the waiting time until the next trade is an exponential distribution with probability density function (Ross, 1996)
+\begin{equation}
+f(t) = \lambda e^{ - \lambda t}, \forall t \geq 0
+\end{equation}
+\end{theorem}
+\begin{proof}
+$P(\tau > t)$ represents that no trade occurrence in the $t$ elapsed time, thus:
+\begin{align}
+P(\tau > t) &= P(N(t) = 0),\\ 
+P(\tau > t) &= e^{ - \lambda t}\\
+\qquad F(t)&=P(\tau < t) = 1  -  P(\tau > t)\\
+F(t)&= 1 -e^{-\lambda t}\\
+ f(t) &= \frac{d}{dt}\left(1  -  e^{ - \lambda t}\right) = \lambda e^{ - \lambda t}
+\end{align}
+\end{proof}
+\begin{corollary}[Memoryless Property]
+The inter-trade arrival time satisfies $P(\tau>s+t| \tau >s)=P(\tau>t)\quad \forall s,t \geq 0,\quad t \leq s$ \text{(Grimmett and Stirzaker, 2001)}
+\end{corollary}
+\begin{proof}
+ Using the exponential survival function,
+\begin{align}
+P(\tau>s+t∣\tau>s)&= \frac{P((\tau >s+t) \cap (\tau >s))}{P(\tau>s)} = \frac{P(\tau > s+t)}{P(\tau > s)}\\
+ &= \frac{e^{ - \lambda(s+t)}}{e^{ - \lambda s}} 
+ = e^{ - \lambda t}
+\end{align}
+\end{proof}
+
+Under the null hypothesis of uniformed tradiding, the memoryless property of exponential distribution implies that the market has no memory of past trades, and the probability of a trade arrival remains unchanged despite the elapsed time. Any statistically significant deviations from the expected waiting time, i.e shorter inter-arrival times, indicate a dependence or information flow in the market.
+
+\section{Continuous Price Deviations and Valuation Risk}
+In the first section, we established that financial market time is endogenous to discrete trade arrivals, where these arrivals are governed by a Poisson process while the inter-arrival time can be modeled exponentially. Having established the structure of when trades occur, we now proceed to model how the trade prices deviate from the fair value, allowing us to understand the value at risk in each of the trades.
+
+\subsection{Price Formation and Valuation Error in Event Time}
+Let $x_i$ be the execution price of  the $i^{th}$ trade and $\theta$ be the fair value, preceding the execution. Recalling that prices do not evolve continuously in time, but update only when trades occur (O'Hara, 1995). We then impose these pricing principles to model the price fluctuations.
+
+\begin{assumption}
+In an arbitrage-free market, prices have no predictable gains, thus when they are conditioned on prior information, the expected future prices equals today’s fair value.
+\begin{align}
+&E[x_i \mid \mathcal{F}^ -]= \theta
+\end{align}
+where $\mathcal{F^-}$ is the information before the trade at event time t (Ross, 1996).
+\end{assumption}
+
+This assumption points out that the latent fair value is the best prediction of the execution price given all the preceding information. Under Martingale pricing, valuation errors average out conditional to prior information.
+
+\subsection{Identifying Fair Value and the Law of Large Numbers}
+To identify the latent fair value $\theta$ in infinitely repeated trading, we require that the valuation error averages out under repeated trading, providing a way for the market to reach the latent value of the asset (Ross, 2014).
+
+\begin{assumption}
+Conditional on the fair value $\theta$, all valuation errors $\{\epsilon_{i \geq 1}\}$ are independent and have the same distribution with finite second moment (Ross, 2014).
+\end{assumption}
+
+\begin{proposition}
+Basing on assumption 2.1 and 2.3, the sample mean of execution prices converges to the fair value $\theta$
+\begin{equation}
+\frac{1}{n} \sum^{n}_{i =1}x_i \rightarrow \theta \qquad as \quad n\rightarrow \infty
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+By assumption 2.1, $x_i = \theta + \epsilon_i$ with $E[\epsilon_i | \mathcal{F}^-] = 0$ and applying the linearity property of expectation:\\
+\begin{equation}
+\frac{1}{n} \sum^{n}_{i =1} x_i = \frac{1}{n} \sum^{n}_{i =1} \theta + \frac{1}{n} \sum^{n}_{i =1} \epsilon_i
+\end{equation}
+By Assumption 2.3, the Strong Law of Large Numbers therefore applies (Ross, 1996) , yielding
+\begin{equation}
+\frac{1}{n}\sum_{i=1}^n \epsilon_i \xrightarrow{\text{a.s.}} 0, \quad \text{as} \;  n \rightarrow \infty
+\end{equation}
+and hence
+\begin{equation}
+\frac{1}{n}\sum_{i=1}^n x_i \xrightarrow{\text{a.s.}} \theta. \quad \text{as $n\rightarrow \infty$}
+\end{equation}
+\end{proof}
+
+\subsection{Inference of Fair Value From Maximum Likelihood}
+To identify the fair value in $n$ finite trades, we employ the maximum likelihood function, allowing us to predict both the fair value and the valuation risk of each trade.
+
+\begin{assumption}
+To infer the fair value $\theta$, we adopt an estimator that depends on the data only through aggregate deviations, coincides with the Law of Large Numbers's limit, and is permutation invariant (Ross, 2014)
+\end{assumption}
+For the error estimator to depend only on aggregate deviations, the score function should be linear in all valuation errors.\\
+
+Given observed trade prices $\{x_i\}^{n}_{i= 1}$, the likelihood of fair value $\theta$ is presented as:
+\begin{align}
+\mathcal{L} (\theta) &= \prod^n_{i =1} f(x_i - \theta)\\
+\ln [\mathcal{L}(\theta)] &= \ln {(\prod^n_{i =1} f(x_i - \theta))}\\
+&= \sum^n_{i =1} {\ln\left[f(x_i - \theta)\right]}
+\end{align}
+We impose assumption 2.3 about finite second moments, i.e. $\sigma^2 <\infty$ and assumption 2.5. This confirms the constraint that large asset mispricings are rare in uniformed markets.
+\begin{align}
+\frac{d}{d\theta}ln[\mathcal{L}(\theta)] &= \sum^n_{i =1}\frac{f'(x_i - \theta)}{f(x_i - \theta)}\\
+\frac{f'(x_i - \theta)}{f(x_i - \theta)} &= -k  (x_i - \theta), \qquad \text{where $k > 0$}\\
+\int\frac{f'(x_i - \theta)}{f(x_i - \theta)} &= -k \int  (x_i - \theta), \qquad \text{let  u = $x_i - \theta$}\\
+\int \frac{df(u)}{f(u)} du &= -k\int u\quad du \\
+\ln |f(u)| &= -k \frac{u^2}{2} + c\\
+f(u) &=  e^{-k\frac{u^2}{2}} e^c, \quad \text{let A = $ke^c$} \\
+f(u) &= A e^{-k\frac{u^2}{2}}
+\end{align}
+The exponential–quadratic form specifies the shape of valuation errors but does not yet define a probability distribution. To find the value of $A$, let us evaluate the cumulative distribution function: 
+
+\begin{align}
+\text{By definition:} \int^\infty_ {-\infty}f(u)d &= 1\\
+\text{Let's define two c.d.f:}\quad F(x) &=\int^\infty_ {-\infty} A e^{-k\frac{x^2}{2}} dx\\
+F(Y) &= \int^\infty_ {-\infty} A e^{-k\frac{y^2}{2}} dy\\
+F(x)F(y) &= \int^\infty_ {-\infty}\int^\infty_ {-\infty} A^2 e^{-k(\frac{x^2+y^2}{2})} dydx = 1\\
+\text{Using Polar coordinates:} \quad x=rcos\theta \quad y &=rsin\theta \quad r^2 = x^2 + y^2 \\
+F(x) F(y) &= \int^{2\pi}_0 \int^{\infty}_0 A^2 e^{\frac{kr^2}{2}} rdrd\theta = 1 \\
+\frac{1}{A^2} &= \int^{2\pi}_0 \left[-\frac{e^{-kr^2}}{2}\right]^{\infty}_0 d\theta\\
+&= \frac{1}{k}[\theta]^{2\pi}_0\\
+\frac{1}{A^2} &= \frac{2\pi}{k} \\
+A = \sqrt{\frac{k}{2\pi}}
+\end{align}
+To find the value of $k$, let us evaluate the variance of this distribution:
+\begin{align}
+\text{By definition, the variance is:}: \sigma^2 &= \int^{\infty}_{-\infty} A u^2e^{-\frac{ku^2}{2}} \ dx\\
+\text{Integrating by parts:}\quad s = u, \ ds &= du, \quad  \\
+dv = Aue^{-\frac{ku^2}{2}} \ du,  \; v &= -\frac{A}{k}e^{-\frac{ku^2}{2}}\\
+\sigma^2 &= \left[ -\frac{A}{k}ue^{-\frac{ku^2}{2}}  \right]^{\infty}_{-\infty} + \frac{1}{k}\int^{\infty}_{-\infty}Ae^{-\frac{ku^2}{2}} du, \\ 
+\text{Recalling that:}\ \int^{\infty}_{-\infty}Ae^{-\frac{ku^2}{2}} du =1, \quad
+k &=\frac{1}{\sigma^2}, \\
+A &= \frac{1}{\sigma \sqrt{2 \pi}}
+\end{align}
+Having established the value of both A and C constants, we can define the distribution fully. Knowing that the distribution has $E[x_i - \theta] = 0$ and the variance, $\sigma^2$, we conclude that observed prices can be modeled and analyzed in normal distribution $N(0, \sigma^2),$ whose p.d.f is:
+\begin{equation}
+f(x) = \frac{1}{\sigma \sqrt{2\pi}}e^{\frac{-(x - \theta)^{2}}{2\sigma^2}}
+ \end{equation}
+Applying  Proposition 2.4 where $\mu \rightarrow \theta$, the p.d.f becomes a normal distribution:
+\begin{equation}
+f(x) = \frac{1}{\sigma \sqrt{2\pi}}e^{\frac{-(x - \mu)^{2}}{2\sigma^2}}
+\end{equation}
+\subsection{Scale Invariance, Canonical Representation, and Computational Efficiency}
+Since the inference on $\theta$ depends on aggregate quadratic deviations, we can parameterize the valuation errors from the normal distribution to standard normal distribution while preserving the maximum likelihood estimation. We adopt the canonical representation by standardizing to unit variance.
+\begin{lemma}
+Suppose X is a normal random variable with mean $\mu$ and variance $\sigma^2$. The transformed random variable: 
+\begin{equation}
+Z = \frac{X- \mu} {\sigma}
+\end{equation}
+is a standard normal.
+\end{lemma}
+\begin{proof}
+Define X:
+\begin{equation}
+Z = \frac{X- \mu} {\sigma} \quad \Leftrightarrow \quad X = \sigma Z + \mu
+\end{equation}
+Let us find the Jacobian: 
+\begin{equation}
+\left|\frac{dx}{dz}\right| = \sigma \quad \Leftrightarrow \quad  dx = \sigma dz
+\end{equation}
+Let's use change of variables theorem: 
+\begin{align}
+f_z (z) &= f_x(\sigma Z + \mu) \sigma \\
+&= \frac{1}{\sigma\sqrt{2\pi}} \ e^{\frac{(\sigma z )^2}{2\sigma^2}} \ \sigma \\
+f_z(z) &= \frac{1}{\sqrt{2\pi}} \ e^{-\frac{z^2}{2}} \quad
+\end{align}
+where $f_z(z)$ represents the canonical form of normal distribution with $\sigma = 1$ and $ \mu = 0$, $Z \sim N(0, 1)$. \\ 
+In low-latency market valuation algorithms, we prefer to use standardized normal distribution over normal distribution for interpreting price deviations. By transforming observed prices into standardized deviations, the inference becomes independent of the location and scale, allowing identical and fast decision rules to be applied across different trade price levels (O'Hara, 1995). 
+
+This invariance enables faster computation, reduces numerical overload, and improves constant-time evaluation, making it suitable for low-latency high-frequency market making algorithms(Cartea et al., 2015).
+\end{proof}
+\section{Bayesian Inference For Updating Observed Prices Belief}
+In the previous section, we analyzed how, under repeated trading, the sample mean of observed prices converges towards the latent fair value, $\theta$. While this result provides a foundation for valuation and hedge trading, it is not admissible for a market-making system that must sustain continuous quoting under finite, uncertain, and continuously arriving information (O'Hara, 1995). 
+
+To operate a market-making system, valuation is not identified by convergence but rather is continuously updated while maintaining consistency with the aggregation limits we obtained in the previous section. To achieve this, we must use a Bayesian structure that obeys martingale pricing, coincides with the maximum entropy limit, and is defined under finite samples. 
+
+Bayesian inference is not introduced as a modeling choice, but as the unique mechanism for continuously evolving valuation under finite information. It is used in the statistically admissible regime introduced in the previous section. When these assumptions fail, we follow a market withdrawal mechanism introduced in the next section.
+
+\subsection{Valuation Model and Prior Uncertainty}
+From assumption 2.1, observed prices satisfy:
+\begin{equation}
+x_i = \theta + \epsilon_i, \qquad  \text{where}  \quad \epsilon_i \sim \mathcal{N}(0,\sigma^2),
+\end{equation}
+where $\theta $ is the latent fair value and $\sigma^2$ shows the valuation deviation raising from uninformed trading.
+
+To understand the uncertainty about $\theta$ before observing trades, we model the trader's valuation belief as:
+\begin{equation}
+\theta \sim \mathcal{N}(\mu_0,\tau_0^2),
+\end{equation}
+where $\mu_0$ reflects the trader’s prior valuation estimate and $\tau_0^2$ represents prior valuation uncertainty (O'Hara, 1995).
+\subsection{Likelihood of Finite Observed Trades}
+For the observed prices $x_1,x_2,\dots,x_n$, the likelihood function is:
+\begin{equation}
+p(x_{1:n}\mid \theta) =  \prod^n_{i=1} \frac{1}{\sigma \sqrt{2\pi}} \exp {\left(-\frac{(x_i - \theta)^2}{2\sigma^2} \right)}
+\end{equation}
+We also evaluate the uncertainty in $\theta$, where:
+\begin{equation}
+p(\theta) = \frac{1}{\tau_0\sqrt{2\pi}} \exp{\left(-\frac{(\theta-\mu_0)^2}{2\tau_0^2}\right)}
+\end{equation}
+To evaluate the joint density of two independent events $(x_{1:n},\theta)$, we observe:
+\begin{equation}
+p(x_{1:n},\theta)
+= \left[ \prod_{i=1}^n \frac{1}{\sigma\sqrt{2\pi}} \exp\left(-\frac{(x_i-\theta)^2}{2\sigma^2}\right) \right]
+\cdot
+\frac{1}{\tau_0\sqrt{2\pi}} \exp\!\left(-\frac{(\theta-\mu_0)^2}{2\tau_0^2}\right).
+\end{equation}
+
+\subsection{Deriving Posterior distribution}
+The posterior belief is expressed as: 
+\begin{equation}
+p(\theta \mid x_{1:n})
+=
+\frac{p(x_{1:n},\theta)}
+{\int_{-\infty}^{\infty} p(x_{1:n},u)\,du}.
+\end{equation}
+Using assumption 2.3 of finite variance, understand that the denominator is finite.
+Now expanding on exponents in the  numerator, we observe:
+\begin{equation}
+-\frac{1}{2}
+\left[
+\frac{1}{\sigma^2}\sum_{i=1}^n (x_i-\theta)^2
++
+\frac{1}{\tau_0^2}(\theta-\mu_0)^2
+\right].
+\end{equation}
+Expanding and collecting terms in $\theta$ gives
+\begin{equation}
+-\frac{1}{2}
+\left[
+\left(\frac{n}{\sigma^2}+\frac{1}{\tau_0^2}\right)\theta^2
+-
+2\left(
+\frac{n\bar{x}}{\sigma^2}
++
+\frac{\mu_0}{\tau_0^2}
+\right)\theta
++
+C
+\right],
+\end{equation}
+where $\bar{x} = \frac{1}{n}\sum_{i=1}^n x_i$ and $C$ denotes a constant independent of $\theta$
+
+Completing the square yields a normal distribution's density with variance
+\begin{equation}
+\tau_n^2 =
+\left(
+\frac{1}{\tau_0^2}+\frac{n}{\sigma^2}
+\right)^{-1},
+\end{equation}
+and mean
+\begin{equation}
+\mu_n =
+\tau_n^2
+\left(
+\frac{\mu_0}{\tau_0^2}
++
+\frac{n\bar{x}}{\sigma^2}
+\right).
+\end{equation}
+Since the density is proportional to $\exp\!\left(-\frac{1}{2\tau_n^2}(\theta-\mu_n)^2\right)$, it coincides with the kernel of a Gaussian distribution with mean $\mu_n$ and variance $\tau_n^2$. Therefore,
+\begin{equation}
+\theta \mid x_{1:n} \sim \mathcal{N}(\mu_n,\tau_n^2).
+\end{equation}
+\subsection{Sensitivity Analysis and Market-Making Implications}
+The posterior parameters $(\mu_n, \tau_n^2)$ admit a direct sensitivity interpretation with respect to incoming order flow. In particular, the posterior mean
+\begin{equation}
+\mu_n=\tau_n^2 \left( \frac{\mu_0}{\tau_0^2} + \frac{n\bar{x}}{\sigma^2} \right),
+\end{equation}
+is a linear functional of observed prices. Differentiating with respect to any single observation $x_i$ yields
+\begin{equation}
+\frac{\partial \mu_n}{\partial x_i} = \frac{\tau_n^2}{\sigma^2},
+\end{equation}
+demonstrating that each trade updates valuation proportionally to its informational precision. As uncertainty contracts, individual observations exert diminishing marginal influence, ensuring stability of the valuation process under sustained trading.
+Residual valuation uncertainty is quantified by the posterior variance
+\begin{equation}
+\tau_n^2 = \left(
+\frac{1}{\tau_0^2} + \frac{n}{\sigma^2} \right)^{-1},
+\end{equation}
+which, in turn, monotonically decreases with the arrival of additional trades, staying strictly positive for any finite $n$. This establishes an important difference with the asymptotic methods and signals that the managing of the uncertainty should be performed.\\
+
+From the market-making perspective, the pair $(\mu_n,\tau_n^2)$ effectively describes the belief state resulting from the observable order flow. While no explicit quoting is imposed, the posterior variance $\tau_n^2$ naturally acts as a measure for valuation uncertainty in a noisy trading environment, effectively governing the possible range for quoted prices or information responsiveness in pricing decisions.
+
+\section{Model Validity, Risk Regimes, and Market Withdrawal}
+
+We introduce a risk-based control framework that distinguishes between pricing risk, which are fluctuations occurring within a statistically valid model, and model risk, which arises when observed prices or arrival patterns violate the assumptions underlying valuation and execution. We derive adaptive spread control for a valid model. We explain statistical regime violations as evidence of model invalidity. Lastly, we introduce a market withdrawal mechanism that governs our model when the probabilistic foundations of pricing and valuation deviations are beyond the model's thresholds.
+
+\subsection{Pricing Risk and Adaptive Spread Control}
+
+The exponential distribution derived in Section 1 defines a natural time scale for market activity under the null hypothesis of uninformed trading. To assess deviations at finite horizons, we introduce a normalized inter-arrival variable that measures realized waiting times relative to their model-implied expectation.
+\begin{definition}[Normalized Event Time]
+Let $T_t$ denote the waiting time until the next trade and let $\lambda$ be the Poisson arrival intensity with the mean: $E[T_t] = \frac{1}{\lambda}$ . Define the normalized event time 
+
+\begin{equation}
+Y_t =  \lambda T_t, 
+\end{equation}
+where  $Y_t \sim  Exponential(1)$
+\end{definition}
+
+The normalized inter-arrival time measures how deviated the observed waiting time is under the null model of uninformed trading, where:
+
+\begin{itemize}
+    \item $Y_t \approx 1$: trade arrivals are consistent with the model-implied expectation.
+    \item $Y_t \ll 1$: trades arrive faster than expected, indicating elevated information pressure.
+    \item $Y_t \gg 1$: trades arrive slower than expected, indicating a liquidity drought or regime shift.
+\end{itemize}
+
+While $Y_t$ provides a continuous measure of surprise, trading systems require discrete decision rules. In response, we introduce probabilistic thresholds which relate to the system's risk tolerance boundaries.
+
+\begin{definition}[Tail Thresholds]
+Let $\alpha, \beta \in (0,1)$ denote tolerance levels.
+Define thresholds $z_\alpha, z_\beta$ by
+\begin{equation}
+\mathbb{P}(Y_t \le z_\alpha) = \alpha, \quad
+\mathbb{P}(Y_t \ge z_\beta) = \beta.
+\end{equation}
+\end{definition}
+
+Since $Y_t \sim \mathrm{Exponential}(1)$ with CDF $F(y)=1-e^{-y}$, the thresholds satisfy
+\begin{equation}
+y_\alpha = -\log(1-\alpha), \qquad
+y_\beta = -\log(\beta).
+\end{equation}
+
+In a trading system, these regions naturally induce discrete control states which are informed by the position of $Y$ in relation to $y_\alpha$ and $y_\beta$.
+\begin{itemize}
+\item When $y_\alpha \le Y_t   \le y_\beta$:   trade arrivals are consistent with the model-implied expectation and the model operates under null hypothesis of uninformed trading. In response, tight spreads and symmetric inventory is kept.
+\item When $Y_t \le y_\alpha$:   we observe a fast arrival regime, signaling informed flow, news,  or toxic trade dumping. In response, the trading algorithm widens spreads and reduces their quote size, to prevent the adverse selection risk (O’Hara, 1995). 
+\item When $Y_t \ge y_\beta$:   we observe a slow arrival regime, facing an inventory and liquidity risk. To  compensate for the risk, the trading system widens its spread, seeking compensation for holding risk and scarcity of liquidity (Cartea et al., 2015).
+\end{itemize}
+\subsection{Model Risk and Statistical Regime Violation}
+
+The adaptive spread control mechanism introduced in Section 3.1 regulates market making behavior under statistically plausible deviations from the null model of uninformed trading (Cartea et al., 2015). However, extreme deviations may arise that violate the assumptions  of the arrival model algorithm (Hansen and Sargent, 2008). In such cases, continued quoting is no longer a problem of pricing but of model validity. To address this, we introduce a statistical market withdrawal mechanism.
+\subsubsection{Standardized Price Deviations}
+By the canonical representation established in Section~2.5, valuation errors may be
+expressed in standardized form as
+\begin{equation}
+Z_t = \frac{x_i - \mu}{\sigma}, \qquad Z_t \sim N(0,1).
+\end{equation}
+This canonical representation removes dependence on the location and scale of execution prices, allowing trade risk to be assessed on deviations. Each observed trade corresponds to an outcome
+\begin{equation}
+\omega \in \Omega;
+\end{equation}
+where $(\Omega, \mathcal{F}, P)$ denotes the probability space induced jointly by the arrival process and the valuation model (Ross, 1996). The standardized deviation $Z_t(\omega)$ is a random variable measured with respect to the information available at event time $t$ (Grimmett and Stirzaker, 2001).
+\subsubsection{Definition of Tail Events($\sigma-$Events)}
+We define extreme deviations as measurable tail events in this probability space.
+\begin{equation}
+E_k = \{ \omega \in \Omega: |Z_k(\omega)| \ge k
+\}, \quad k>0
+\end{equation}
+Since $Z_k$ is $\mathcal{F}-measurable, E_k \in \mathcal{F}$ is a valid event. Under our model: 
+\begin{equation}
+P(E_k) = P(|Z_t|\ge k) = P(Z_t \ge k) + P(Z_t \le k)
+\end{equation}
+By symmetry of the standard normal distribution (Grimmett and Stirzaker, 2001),
+\begin{equation}
+P(E_k) = 2(1 - \phi(k)), \quad \text{where:} \quad \phi(k) = P(Z_t \le k)
+\end{equation}
+For large $k$, this probability decays exponentially, implying that such events are extremely rare under the null hypothesis.
+\subsection{Market Withdrawal under Model Invalidity}
+In the previous sub section, we define the tail events $E_k$ that represent extreme but possible outcomes within in the null hypothesis of statistically regular market conditions. For the fixed threshold, $k =2$:
+\begin{equation}
+P(|Z_t| \le 2) = 0.9567
+\end{equation}
+while
+\begin{equation}
+P(|Z_t| > 2) = 0.0433
+\end{equation}
+As long as $|Z_t| < k,$ observed deviations are interpreted as statistically acceptable deviations of the valuation model, and the adaptive spread control introduced in section 3.1 remains the valid response of the model. When the standardized price deviation $Z_t$, and normalized arrival time $Y_t$ remain within their probabilistic boundaries $(k, y_\alpha,y_\beta )$, continued quoting is justified by the assumptions of the model.
+
+However, when large $Z_t$ occur persistently, or tail-realizations of $Z_t$ happen coincidentally with violations of the arrival time thresholds $y_\alpha$ and $y_\beta$, the behavior of both $Z_t$ and $Y_t$ become inconsistent with the null hypothesis of uninformed trading, and the assumed probability structure fails.
+
+This marks the model's transition from pricing risk to model risk. As emphasized by Hansen and Sargent, when uncertainty about the data generating process dominates the parameter estimation error, continued quoting under the fixed probabilistic assumptions should be withdrawn  (2008). In this regime, large deviations reflect model failure rather than mispricing noise. This market withdrawal principle also appear in admissible market-making models with regime shifts and execution risk (Cartea et al., 2015). Therefore, the appropriate response mechanism is market withdrawal  instead of continued quoting under misspecified assumptions.
+
+The market withdrawal mechanism thus acts as a governance mechanism rather than an estimator, enforcing quoting only within regimes where the model's assumed probability structure remains defensible.
+\section{Conclusion}
+This paper develops a unified stochastic structure for high-frequency market making by
+deriving price dynamics, valuation inference, and trading controls from first principles of
+discrete trade arrivals and probabilistic consistency.
+
+Beginning with Bernoulli trade occurrences, we derive Poisson arrivals and exponential
+inter-trade waiting times, establishing an event-time representation of markets in which
+temporal information is endogenous to trading activity. Within this structure, execution
+prices are modeled as martingale-consistent fluctuations around a latent fair value, allowing
+valuation risk to be formalized through aggregation, maximum likelihood estimation, and
+canonical standardization.
+
+Bayesian conjugate inference is then introduced as a finite-sample extension of classical
+estimation, preserving consistency with the Law of Large Numbers while enabling belief
+updating under incomplete information.
+
+Crucially, the paper distinguishes pricing risk from model risk. While adaptive spread control
+addresses statistically admissible deviations within the assumed probabilistic structure,
+persistent tail realizations in price deviations or arrival dynamics signal violations of model
+validity rather than transient noise.
+
+In such regimes, continued quoting is no longer justified as an estimation problem but must be treated as a governance decision. The proposed market withdrawal mechanism formalizes this distinction, enforcing participation only within regimes where the model’s probabilistic foundations remain defensible.
+
+Taken together, the results emphasize that effective high-frequency market making is not
+defined by increasingly complex estimators, but by rigorous alignment between inference,
+control, and model validity. Structure precedes optimization: valuation, risk management,
+and withdrawal are governed by the same probabilistic assumptions, and trading activity is
+sustained only so long as those assumptions remain locally coherent.
+\begin{thebibliography}{99}
+\bibitem{Grimmett}
+Grimmett, Geoffrey, and David Stirzaker. \textit{Probability and Random Processes}. 3rd ed., Oxford University Press, 2001.
+\bibitem{Ross}
+Ross, Sheldon M. Stochastic Processes. 2nd ed., Wiley, 1996.
+\bibitem{O'Hara}
+O’Hara, Maureen. \textit{Market Microstructure Theory}. Blackwell Publishers, 1995.
+\bibitem{Delbaen, Schachermayer}
+Delbaen, Schachermayer, 1998. \textit{A General Version of the Fundamental Theorem of Asset Pricing Mathematische Annalen.}
+\bibitem{Cartea et al.}
+Cartea, Á., Jaimungal, S., \& Penalva, J. (2015).\textit{Algorithmic and High-Frequency Trading.} Cambridge University Press.
+\bibitem{Hansen and Sargent}
+Hansen, Lars Peter, and Thomas J. Sargent. \textit{Robustness}. Princeton University Press, 2008
+\end{thebibliography}
+\end{document}
