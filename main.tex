@@ -165,7 +165,7 @@ We impose assumption 2.3 about finite second moments, i.e. $\sigma^2 <\infty$ an
 \int\frac{f'(x_i - \theta)}{f(x_i - \theta)} &= -k \int  (x_i - \theta), \qquad \text{let  u = $x_i - \theta$}\\
 \int \frac{df(u)}{f(u)} du &= -k\int u\quad du \\
 \ln |f(u)| &= -k \frac{u^2}{2} + c\\
-f(u) &=  e^{-k\frac{u^2}{2}} e^c, \quad \text{let A = $ke^c$} \\
+f(u) &=  e^{-k\frac{u^2}{2}} e^c, \quad \text{let A = $e^c$} \\
 f(u) &= A e^{-k\frac{u^2}{2}}
 \end{align}
 The exponential–quadratic form specifies the shape of valuation errors but does not yet define a probability distribution. To find the value of $A$, let us evaluate the cumulative distribution function: 
@@ -388,7 +388,6 @@ In a trading system, these regions naturally induce discrete control states whic
 \item When $Y_t \ge y_\beta$:   we observe a slow arrival regime, facing an inventory and liquidity risk. To  compensate for the risk, the trading system widens its spread, seeking compensation for holding risk and scarcity of liquidity (Cartea et al., 2015).
 \end{itemize}
 \subsection{Model Risk and Statistical Regime Violation}
-
 The adaptive spread control mechanism introduced in Section 3.1 regulates market making behavior under statistically plausible deviations from the null model of uninformed trading (Cartea et al., 2015). However, extreme deviations may arise that violate the assumptions  of the arrival model algorithm (Hansen and Sargent, 2008). In such cases, continued quoting is no longer a problem of pricing but of model validity. To address this, we introduce a statistical market withdrawal mechanism.
 \subsubsection{Standardized Price Deviations}
 By the canonical representation established in Section~2.5, valuation errors may be
@@ -429,37 +428,15 @@ As long as $|Z_t| < k,$ observed deviations are interpreted as statistically acc
 
 However, when large $Z_t$ occur persistently, or tail-realizations of $Z_t$ happen coincidentally with violations of the arrival time thresholds $y_\alpha$ and $y_\beta$, the behavior of both $Z_t$ and $Y_t$ become inconsistent with the null hypothesis of uninformed trading, and the assumed probability structure fails.
 
-This marks the model's transition from pricing risk to model risk. As emphasized by Hansen and Sargent, when uncertainty about the data generating process dominates the parameter estimation error, continued quoting under the fixed probabilistic assumptions should be withdrawn  (2008). In this regime, large deviations reflect model failure rather than mispricing noise. This market withdrawal principle also appear in admissible market-making models with regime shifts and execution risk (Cartea et al., 2015). Therefore, the appropriate response mechanism is market withdrawal  instead of continued quoting under misspecified assumptions.
+This marks the model's transition from pricing risk to model risk. As emphasized by Hansen and Sargent, when uncertainty about the data generating process dominates the parameter estimation error, continued quoting under the fixed probabilistic assumptions should be withdrawn (2008). In this regime, large deviations reflect model failure rather than mispricing noise. This market withdrawal principle also appear in admissible market-making models with regime shifts and execution risk (Cartea et al., 2015). Therefore, the appropriate response mechanism is market withdrawal  instead of continued quoting under misspecified assumptions.
 
 The market withdrawal mechanism thus acts as a governance mechanism rather than an estimator, enforcing quoting only within regimes where the model's assumed probability structure remains defensible.
 \section{Conclusion}
-This paper develops a unified stochastic structure for high-frequency market making by
-deriving price dynamics, valuation inference, and trading controls from first principles of
-discrete trade arrivals and probabilistic consistency.
+This paper develops a unified stochastic framework for high-frequency market making by deriving price dynamics, valuation inference, and trading controls directly from discrete trade arrivals. Starting from Bernoulli trade events, we obtain Poisson arrivals and exponential inter-trade waiting times, yielding an event-time representation of trades In this framework, observed prices follow as martingale pricing rules, averaging out around a latent fair value, allowing valuation risk to be characterized through aggregation and finite-sample inference.
 
-Beginning with Bernoulli trade occurrences, we derive Poisson arrivals and exponential
-inter-trade waiting times, establishing an event-time representation of markets in which
-temporal information is endogenous to trading activity. Within this structure, execution
-prices are modeled as martingale-consistent fluctuations around a latent fair value, allowing
-valuation risk to be formalized through aggregation, maximum likelihood estimation, and
-canonical standardization.
+Crucially, the framework distinguishes pricing risk from model risk. While Bayesian updating governs statistically admissible deviations within the assumed probabilistic structure, persistent tail realizations in prices or arrival dynamics indicate violations of model validity rather than transient noise. In such regimes, continued quoting is no longer an estimation problem but a governance decision. The proposed market withdrawal mechanism enforces this distinction, restricting participation to regimes where the model’s probabilistic foundations remain locally coherent. Structure precedes optimization.
 
-Bayesian conjugate inference is then introduced as a finite-sample extension of classical
-estimation, preserving consistency with the Law of Large Numbers while enabling belief
-updating under incomplete information.
-
-Crucially, the paper distinguishes pricing risk from model risk. While adaptive spread control
-addresses statistically admissible deviations within the assumed probabilistic structure,
-persistent tail realizations in price deviations or arrival dynamics signal violations of model
-validity rather than transient noise.
-
-In such regimes, continued quoting is no longer justified as an estimation problem but must be treated as a governance decision. The proposed market withdrawal mechanism formalizes this distinction, enforcing participation only within regimes where the model’s probabilistic foundations remain defensible.
-
-Taken together, the results emphasize that effective high-frequency market making is not
-defined by increasingly complex estimators, but by rigorous alignment between inference,
-control, and model validity. Structure precedes optimization: valuation, risk management,
-and withdrawal are governed by the same probabilistic assumptions, and trading activity is
-sustained only so long as those assumptions remain locally coherent.
+\newpage
 \begin{thebibliography}{99}
 \bibitem{Grimmett}
 Grimmett, Geoffrey, and David Stirzaker. \textit{Probability and Random Processes}. 3rd ed., Oxford University Press, 2001.
