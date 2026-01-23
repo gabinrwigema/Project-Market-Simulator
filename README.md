@@ -15,3 +15,6 @@ Compile using any standard LaTeX engine (e.g., pdfLaTeX).
 
 ## Status
 Research in progress
+
+## License
+This project is licensed under the MIT License.
